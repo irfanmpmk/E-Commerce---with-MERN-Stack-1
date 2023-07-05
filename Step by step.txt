@@ -1,0 +1,282 @@
+1. install npm, express, react, nodemon, dotenv, morgan
+2. create server.js
+3. add "type":"module", below "main": "server.js",in json file to make it es6
+4.add "server": "nodemon server.js" in "scripts" section in json file to start using nodemon by typing command 'nmp server run' in terminal.
+5. in server.js , write following codes.
+
+import colors from "colors";
+import express from "express";
+import dotenv from "dotenv";
+import morgan from "morgan"; //data logger
+import connectDB from "./config/db.js";
+
+
+//configure env
+dotenv.config();
+
+//database config
+connectDB();
+
+//rest object
+const app = express();
+
+//middlewares
+app.use(express.json()); //instead of body-parsing we can use this
+app.use(morgan("dev")); //morgan for logging
+
+app.get("/", (req,res) => {res.send("welcome");}); 
+
+const PORT = process.env.PORT || 8080; 
+//server running on port defined in .env file, if .env has any issue come, port 8080 is using as it typed here.
+
+
+app.listen(PORT, () => {
+  console.log(
+    `Server Running on ${process.env.Dev_MODE} mode on port ${PORT}`.bgCyan.yellow  );
+});
+
+6. create .env file and install its package from npm 
+inside .env file type the following codes
+
+PORT = 8080
+DEV_MODE = development
+MONGO_URL = mongodb+srv://irfanmpm:<password>@cluster0.fjhiqmx.mongodb.net/ecommerce_irfanK
+
+
+7. Install MongoDB and MongoDb-Compass. sign-in to mongoDB atlas and   create a cluster , click on shared and continue on default options and click create cluster. create new databse named ecommerce. add new users using databse access on left panel " user1 with user123 " as password. in Network Access, add one fixed ip address like 0.0.0.0/0 and check how to  whitelist MongoDB ip address after googling. Now click on Database on left panel and click Connect near the cluster name. and connect through MongoDB compass and copy the connection string and paste into .env file by assigning a variable name MONGO_URL for it.   
+8. in the MONGO_URL, at last after '/' add database name you just added in mongoDB Atlas  and change the username and password to that added in Atlas Database Access. 
+9. Open MondoDBCompass and add the URL by copy paste without including database name and click add connection. after it got connected follow below.
+10. in Vscode add new folder config and db.js in it. And inside db.js, type import mongoose from 'mongoose'.
+11. enter command 'npm i mongoose' in terminal to install mongoose. 
+12. inside db.js type the following codes 
+
+import mongoose from "mongoose";
+import colors from "colors";
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URL);
+    console.log(
+      `Connected to MongoDB Database ${conn.connection.host}`.bgMagenta.white
+    );
+  } catch (error) {
+    console.log(`Error in MongoDB ${error}`.bgRed.white);
+  }
+};
+
+export default connectDB;
+
+13.create folders controllers, helpers, middlewares, models, routes.
+create files authController.js in controllers , userModels.js in models, authRoute.js in routes folders. 
+14. In userModel.js add the following codes schema
+
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+    },
+    address: {
+      type: String,
+      require: true,
+    },
+    role: {
+      type: Number,
+      default: 0,
+    },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("users", userSchema); //users collection already created in mongoDB compass. exporting userSchema to utilize outside.
+
+15. In authRoute.js add the following codes
+
+import express from "express";
+
+//route object
+const router = express.Router();
+
+//routing
+//REGISTER || METHOD POST
+router.post("/register", registerController);
+
+export default router;
+
+16.In authController.js
+
+import { hashPassword } from "../helpers/authHelpers.js";
+import userModel from "../models/userModel.js";
+
+export const registerController = async (req, res) => {
+  try {
+    const { name, email, password, phone, address } = req.body;
+    //validations
+    if (!name) {
+      return res.send({ error: "Name is required." });
+    }
+    if (!email) {
+      return res.send({ error: "email is required." });
+    }
+
+    if (!password) {
+      return res.send({ error: "password is required." });
+    }
+
+    if (!phone) {
+      return res.send({ error: "Phone no. is required." });
+    }
+
+    if (!address) {
+      return res.send({ error: "Address is required." });
+    }
+
+    //check user
+    const existingUser = await userModel.findOne({ email });
+    //existing user
+    if (existingUser) {
+      return res.status(200).send({
+        success: true,
+        message: "Already Register please login",
+      });
+    }
+    //register user
+    const hashedPassword = await hashPassword(password);
+    //save
+    const user = await new userModel({
+      name,
+      email,
+      phone,
+      address,
+      password: hashedPassword,
+    }).save();
+
+    res.status(201).send({
+      success: true,
+      message: "User Registered Successfully",
+      user,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error in Registration",
+      error,
+    });
+  }
+};
+
+
+
+
+download and install postman api app
+install hash password crytper using command ' npm i bcrypt ' 
+
+17. inside helpers folder create authHelper.js 
+inside this create codes for encrypt and decrypt of passwords.
+
+type  code as below 
+
+import bcrypt from 'bcrypt'
+
+export const hashPassword =>async(password){
+    try{
+        const saltRounds =10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        return hashedPassword ;
+
+    } catch (error) {
+        console.log(error)
+    } 
+}
+
+export const comparePassword = async(password,hashedPassword) => {
+    return bcrypt.compare(password,hashedPassword);
+} 
+
+18. inside post man use http://localhost:8080/api/v1/auth/register and click Body > raw > change text to JSON
+and type in the codes  inside. 
+
+{
+    "name":"tesst",
+    "email":"test@test.com",
+    "password":"123456",
+    "phone":"123456789",
+    "address":"Malappuram Kerala"
+
+}
+
+Now Click send
+
+19. install jsonwebtoken in terminal by using code ' npm install jsonwebtoken '
+
+in authController type import JWT from 'jsonwebtoken';
+
+in .env create a secret key,  JWT_SECRET = snfiosifosefsoi3q21 (type any random text).
+
+
+In mongodb database if the role of the users is 0 , it is user. if role is 1 it is admin.
+
+20. React Install  and set components > Layout and components > pages folders inside the src folder
+21. copy paste CDN files of Bootstrap link and script to the index.html file 
+22. copy paste poppins and other required google fonts to the css . import it and use its codes in css 
+
+23. install react router dom and import it in index.js 
+24. start creating new pages in pages folder in components. 
+25. start adding responsive navbars and other elements from Bootstrap website by copy paste.
+example : copy paste the code into header.js file and replace the <h1>Header</h1> with the code . then right click that entire inserted code and click convert to jsx.
+delete form section from it.
+import {NavLink} from react-router-dom 
+select all anchore links and replace it with NavLink to="/"
+
+25. add css properties
+26. search and install react icons by googling.Import react icons and select and paste required icons from that website. https://react-icons.github.io/react-icons/
+27. add required images to the public folder images directory.
+28. Now we are doing SEO Optimization.
+search meta tags and open the w3c website result. now learn SEO tag.
+goto npmjs.com and search react-helmet. install it. copy and paste  its required codes from its doc to layout.js file. first copy paste the import code.Then paste the helmet code above header inside div. remove link code line from it.
+copy keywords,description, author line copy paste from the w3c school meta tags into the helmet section above title.
+make description dynamic.
+add Layout.defaultProps to the bottom of layout.js to load those title names if there was no title mentioned for the navigated pages. 
+29. now make a folder auth in components and create register.js and login.js inside.
+open registr.js and add content. add its css code in css file. 
+goto bootstrap and search forms and click overview and copy paste the first form template codes to the register.js. then select the copied portion and convert it into jsx. 
+rearrange and remove unncessary form items.
+30import useState and use it. submit to store data. for that install axios using npmjs. axios best for http client (req,res) usage in react from nodejs.
+31.install react-toastify from npmjs. toastify allow adding notification to app easily. import ToastContainer import; 'react-toastify/dist/ReactToastify.css';to App.js and layout.js and call <ToastContainer /> in layout.js only. read its documentation. test it in register page. import and call it in register.js. and in registration page, fill all and register and see the notification.
+32.now we can use Axios. for that we need to create a file called .env in client folder . Now connect backend port to frontend using .env file. since we are working in react we have start everycode inside .env file with REACT_APP_ . now add REACT_APP_API = http://localhost:8080 in .env file. Also we need to install in Ecommerce folder (not in react client folder) which is the main folder concurrently to start two js files simultaneously and cors to consolelog the cross server of frontend and backend from npmjs. And restart the server since we modify the env file we have to start. 
+change the package.json file as told in the concurrently doc , add the following in json file scripts section "dev": "concurrently \"command1 arg\" \"command2 arg\"" . before this line add "client": "npm start --prefix ./client" to run react client . now change the command1 arg and command2 arg in the line just copied from concurrently doc  to that match with the react client and server. so in brief you will add 
+	"client": "npm start --prefix ./client",
+    "dev": "concurrently \"npm run server\" \"npm run client\""  in the package.json file inside the script tag. 
+33. now import cors in server.js file . and add in middlewares section of server.js as app.use(cors());
+34. now in terminal in main folder , type npm run dev and enter. now the both server and client will start simultaneously.
+35. goto register page and check its working., now lets import axios and use it. 
+36.if port in .env file in client is not running properly add same port to package.json in client as "proxy":"http://localhost:8080", under the name. 
+37. if toast notification is not working properly, install react hot toast in client folder and import it and use this instead.
+38.create a styles folder inside src folder. create all pages css files inside it. remove the register css codes from index.css instead use AuthStyles.css file.
+39.React CONTEXT API using to show the logout button after logging in. We are not using redux in this .  Create a file auth.js in context folder created in src folder.
+import { useState, useEffect, useContext, createContext } from "react";
+40. change header after importing the {useAuth} . And replace the login and register list from there. and instead use it inside the ternery operator.
+41. Install slugify in root from npm . This converts whitespace to - or ap er ur input. 
+42.install express-formidable in root inorder to use Photos of products.
+43.Inside CreateCategory.js , add bootstrap table and change the h1 content to manage category. now add necessary things
+44. create a Form folder inside components folder and create a CategoryForms.js inside it. Insert form data from bootstrap website. create edit and delete buttons for the mapped items in table. use Ant Design website.
+45. use Ant Design for modal components. 
+46.in client folder, npm install antd --save
+ import its css file from getting started section to client index.js file . import 'antd/dist/reset.css';
+47. click components in Ant Design and  search modal. from its code section, refering, we can use  same format in our createCategory.js file .
