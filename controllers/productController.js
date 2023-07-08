@@ -1,6 +1,21 @@
 import slugify from "slugify";
 import productModel from "../models/productModel.js";
+import categoryModel from "../models/categoryModel.js";
+import orderModel from "../models/orderModel.js";
 import fs from "fs";
+import braintree from "braintree";
+import dotenv from "dotenv";
+import { response } from "express";
+
+dotenv.config();
+
+//payment gateway using braintree
+var gateway = new braintree.BraintreeGateway({
+  environment: braintree.Environment.Sandbox,
+  merchantId: process.env.BRAINTREE_MERCHANT_ID,
+  publicKey: process.env.BRAINTREE_PUBLIC_KEY,
+  privateKey: process.env.BRAINTREE_PRIVATE_KEY,
+});
 
 export const createProductController = async (req, res) => {
   try {
@@ -20,7 +35,7 @@ export const createProductController = async (req, res) => {
         return res.status(500).send({ error: "Category is Required" });
       case !quantity:
         return res.status(500).send({ error: "Quantity is Required" });
-      case photo && photo.size > 1000000: //size 1000000 MB or less
+      case photo && photo.size > 1000000 /*size 1000000 MB or less*/:
         return res
           .status(500)
           .send({ error: "Photo is Required and should be less than 1MB" });
@@ -50,7 +65,7 @@ export const createProductController = async (req, res) => {
 //Update Product (Note: This has Only slight change with create product)
 export const updateProductController = async (req, res) => {
   try {
-    const { name, slug, description, price, category, quantity, shipping } =
+    const { name, description, price, category, quantity, shipping } =
       req.fields; //took all non filed keys from productModel to parse. //refer express-formidable doc in npm.
     const { photo } = req.files; //took all file type keys from productModel to parse.
 
@@ -166,10 +181,10 @@ export const productPhotoController = async (req, res) => {
 export const deleteProductController = async (req, res) => {
   try {
     const product = await productModel
-      .findOneAndDelete(req.params.pid)
+      .findByIdAndDelete(req.params.pid)
       .select("-photo");
     res.status(200).send({
-      Success: true,
+      success: true,
       message: "Product deleted Successfully",
     });
   } catch (error) {
@@ -246,5 +261,123 @@ export const productListController = async (req, res) => {
       message: "error in per page controller",
       error,
     });
+  }
+};
+
+//search product
+export const searchProductController = async (req, res) => {
+  try {
+    const { keyword } = req.params;
+    const results = await productModel
+      .find({
+        $or: [
+          { name: { $regex: keyword, $options: "i" } },
+          { description: { $regex: keyword, $options: "i" } },
+        ],
+      })
+      .select("-photo");
+    res.json(results);
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({
+      success: false,
+      message: "Error while searching Product API",
+      error,
+    });
+  }
+};
+
+//similar products
+export const relatedProductController = async (req, res) => {
+  try {
+    const products = await productModel
+      .find({
+        category: req.param.cid,
+        _id: { $ne: req.params.pid },
+      })
+      .select("-photo")
+      .limit(6)
+      .populate("category");
+    res.status(200).send({
+      success: true,
+      message: "Similar items successfully shown",
+      products,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({
+      success: false,
+      error,
+    });
+  }
+};
+
+//get product by category
+
+export const productCategoryController = async (req, res) => {
+  try {
+    const category = await categoryModel.findOne({ slug: req.params.slug });
+    const products = await productModel.find({ category }).populate("category");
+    res.status(200).send({
+      success: true,
+      category,
+      products,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({
+      success: false,
+      message: "Error while getting the product list",
+      error,
+    });
+  }
+};
+
+//payment & token gateway api
+export const braintreeTokenController = async (req, res) => {
+  try {
+    gateway.clientToken.generate({}, (err, response) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.send(response);
+      }
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+//payment
+export const brainTreePaymentController = async (req, res) => {
+  try {
+    const { cart, nonce } = req.body;
+    let total = 0;
+    cart.map((i) => {
+      total += i.price;
+    });
+    let newTransaction = gateway.transaction.sale(
+      {
+        amount: total,
+        paymentMethodNonce: nonce,
+        options: {
+          submitForSettlement: true,
+        },
+      },
+      function (error, result) {
+        if (result) {
+          const order = new orderModel({
+            products: cart,
+            payment: result,
+            buyer: req.user._id,
+          }).save();
+          res.json({ ok: true });
+        } else {
+          res.status(500).send(error);
+        }
+      }
+    );
+  } catch (error) {
+    console.log(error);
   }
 };

@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 const categorySchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
-    unique: true,
+    // required: true,
+    // unique: true,
   },
 
   //npm install slugify first

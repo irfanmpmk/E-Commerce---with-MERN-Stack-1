@@ -280,3 +280,8 @@ import { useState, useEffect, useContext, createContext } from "react";
 46.in client folder, npm install antd --save
  import its css file from getting started section to client index.js file . import 'antd/dist/reset.css';
 47. click components in Ant Design and  search modal. from its code section, refering, we can use  same format in our createCategory.js file .
+48. for payment transaction goto Braintree website and link with paypal developer account. goto braintree > settings>processing. Link to paypal. copy paste all the required details from paypal developer mechant account. Goto home page of braintree and copy Merchant Id, public and private keys. Then in .env backend file add those details one by one .
+49. npm i braintree in the main directory. 
+50.npm i braintree-web-drop-in-react in the client directory for react to use. 
+51. copy and paste gateway codes from braintree npm doc to productcontrller.js. also import braintree. 
+52. goto productroutes and create the payment routes and token.
