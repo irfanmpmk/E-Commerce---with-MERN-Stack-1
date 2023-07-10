@@ -285,3 +285,22 @@ import { useState, useEffect, useContext, createContext } from "react";
 50.npm i braintree-web-drop-in-react in the client directory for react to use. 
 51. copy and paste gateway codes from braintree npm doc to productcontrller.js. also import braintree. 
 52. goto productroutes and create the payment routes and token.
+53. 'npm install moment' in client directory. This will format date in the 'order.js' table as a pretty neat . Import it in orders.js
+
+
+~~~~~~~~~~~~~~~~~~
+54. To deploy use 'cyclic.sh'
+55. open pakcage.json of server and  add or replace "dev": "concurrently \"npm run start\" \"npm run client\""
+56. Now in terminal in client folder type 'npm run build' 
+57.in server.js file, type the following 
+
+import cors from "cors";
+import path from "path";
+
+//middlewares
+app.use(express.static(path.join(__dirname, "./client/build")));
+
+//rest api
+app.use("*", function (req, res) {
+  res.sendFile(path.join(__dirname, "./client/build/index.html"));
+});
