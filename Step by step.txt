@@ -304,3 +304,13 @@ app.use(express.static(path.join(__dirname, "./client/build")));
 app.use("*", function (req, res) {
   res.sendFile(path.join(__dirname, "./client/build/index.html"));
 });
+
+
+58. Now push the client/build folder and other root folders exclduing node_modules folder, .env file and main client folder to the git respository. 
+git init
+git add . 
+git status
+git commit -m 'your message'
+git remote add origin 'your_url_name'
+git push -u origin master
+
